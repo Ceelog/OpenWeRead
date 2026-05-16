@@ -2,13 +2,7 @@
   "name": "openweread",
   "version": "0.1.0",
   "description": "微信读书开放 Skills 的 TypeScript SDK 与命令行工具",
-  "keywords": [
-    "weread",
-    "微信读书",
-    "sdk",
-    "cli",
-    "skills"
-  ],
+  "keywords": ["weread", "微信读书", "sdk", "cli", "skills"],
   "license": "MIT",
   "author": "Ceelog",
   "homepage": "https://github.com/Ceelog/OpenWeRead",
@@ -29,10 +23,7 @@
   "bin": {
     "openweread": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "engines": {
     "node": ">=18"
   },
