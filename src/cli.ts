@@ -10,10 +10,45 @@ program
   .name('openweread')
   .description('微信读书开放 Skills 命令行工具')
   .version('0.1.0')
-  .option('--json', '以 JSON 原始输出，便于脚本管道处理');
+  .option('--json', '以 JSON 原始输出，便于脚本管道处理')
+  .option('--verbose', '打印 API 请求参数与响应结果，便于调试');
+
+function isVerbose(): boolean {
+  return Boolean(program.opts().verbose);
+}
+
+function createVerboseFetch(): typeof fetch {
+  return async (input, init) => {
+    const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
+    let reqBody: unknown;
+    if (init?.body && typeof init.body === 'string') {
+      try {
+        reqBody = JSON.parse(init.body);
+      } catch {
+        reqBody = init.body;
+      }
+    }
+    process.stderr.write(`\n[verbose] → POST ${url}\n`);
+    process.stderr.write(`[verbose] request: ${JSON.stringify(reqBody, null, 2)}\n`);
+    const started = Date.now();
+    const res = await globalThis.fetch(input, init);
+    const elapsed = Date.now() - started;
+    const cloned = res.clone();
+    const text = await cloned.text();
+    let parsed: unknown = text;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // keep as text
+    }
+    process.stderr.write(`[verbose] ← ${res.status} ${res.statusText} (${elapsed}ms)\n`);
+    process.stderr.write(`[verbose] response: ${JSON.stringify(parsed, null, 2)}\n\n`);
+    return res;
+  };
+}
 
 function sdk(): OpenWeRead {
-  return new OpenWeRead();
+  return new OpenWeRead(isVerbose() ? { fetch: createVerboseFetch() } : {});
 }
 
 function shouldOutputJson(): boolean {
