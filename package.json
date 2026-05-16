@@ -1,12 +1,59 @@
 {
   "name": "openweread",
-  "version": "1.0.0",
-  "description": "微信读书开放 Skills & Cli & Api",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "version": "0.1.0",
+  "description": "微信读书开放 Skills 的 TypeScript SDK 与命令行工具",
+  "keywords": [
+    "weread",
+    "微信读书",
+    "sdk",
+    "cli",
+    "skills"
+  ],
+  "license": "MIT",
+  "author": "Ceelog",
+  "homepage": "https://github.com/Ceelog/OpenWeRead",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ceelog/OpenWeRead.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "openweread": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/cli.js",
+    "dev": "tsc -w -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run lint && pnpm run test && pnpm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "packageManager": "pnpm@9.0.0"
 }
