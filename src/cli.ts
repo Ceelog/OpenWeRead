@@ -1,16 +1,23 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { formatDate, formatDuration, formatStar } from './cli/format.js';
 import { WereadAuthError, WereadError } from './errors.js';
 import { OpenWeRead } from './sdk.js';
 import type { BookInfo } from './types.js';
 
+const pkg = JSON.parse(
+  readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'),
+) as { version: string };
+
 const program = new Command();
 
 program
   .name('openweread')
   .description('微信读书开放 Skills 命令行工具')
-  .version('0.1.0')
+  .version(pkg.version)
   .option('--json', '以 JSON 原始输出，便于脚本管道处理')
   .option('--verbose', '打印 API 请求参数与响应结果，便于调试');
 
