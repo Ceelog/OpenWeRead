@@ -1,0 +1,7 @@
+interface:
+  display_name: "OpenWeRead"
+  short_description: "通过 CLI 查询微信读书数据"
+  default_prompt: "Use $openweread to summarize my WeRead shelf, notes, or reading stats."
+
+policy:
+  allow_implicit_invocation: true

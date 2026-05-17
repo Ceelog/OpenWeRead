@@ -54,6 +54,139 @@ export interface BookmarkListParams {
   synckey?: number;
 }
 
+export interface MineReviewItem {
+  reviewId: string;
+  content: string;
+  createTime?: number;
+  star?: number;
+  chapterName?: string;
+  isFinish?: number;
+  range?: string;
+  chapterUid?: number;
+  abstract?: string;
+}
+
+export interface MineReviewListResponse {
+  totalCount: number;
+  hasMore: number;
+  synckey: number;
+  reviews: Array<{ review: MineReviewItem }>;
+}
+
+export interface MineReviewListParams {
+  bookid: string;
+  synckey?: number;
+  count?: number;
+}
+
+export interface UnderlinesParams {
+  bookId: string;
+  chapterUid: number;
+  synckey?: number;
+}
+
+export interface UnderlineItem {
+  range: string;
+  count: number;
+  score?: number;
+  type?: number;
+}
+
+export interface UnderlinesResponse {
+  bookId: string;
+  chapterUid: number;
+  synckey: number;
+  underlines: UnderlineItem[];
+}
+
+export interface BestBookmarksParams {
+  bookId: string;
+  chapterUid?: number;
+  synckey?: number;
+}
+
+export interface BestBookmarkItem {
+  bookId: string;
+  userVid?: string;
+  bookmarkId: string;
+  chapterUid: number;
+  range: string;
+  markText: string;
+  totalCount: number;
+  simplifiedRange?: string;
+  traditionalRange?: string;
+}
+
+export interface BestBookmarksResponse {
+  synckey: number;
+  totalCount: number;
+  items: BestBookmarkItem[];
+  chapters?: Array<{ bookId: string; chapterUid: number; chapterIdx?: number; title?: string }>;
+}
+
+export interface ReadReviewsRangeParams {
+  range: string;
+  maxIdx?: number;
+  count?: number;
+  synckey?: number;
+}
+
+export interface ReadReviewsParams {
+  bookId: string;
+  chapterUid: number;
+  reviews: ReadReviewsRangeParams[];
+}
+
+export interface ReadReviewPageReview {
+  reviewId: string;
+  review: {
+    reviewId: string;
+    abstract?: string;
+    content: string;
+    range?: string;
+    createTime?: number;
+    author?: { userVid: string; name: string; avatar?: string };
+  };
+}
+
+export interface ReadReviewsRangeResult {
+  range: string;
+  totalCount: number;
+  hasMore: number;
+  maxIdx: number;
+  synckey: number;
+  pageReviews: ReadReviewPageReview[];
+}
+
+export interface ReadReviewsResponse {
+  bookId: string;
+  chapterUid: number;
+  reviews: ReadReviewsRangeResult[];
+}
+
+export interface ReviewSingleParams {
+  reviewId: string;
+  commentsCount?: number;
+  commentsDirection?: 0 | 1;
+  likesCount?: number;
+  likesDirection?: 0 | 1;
+  synckey?: number;
+}
+
+export interface ReviewSingleResponse {
+  reviewId: string;
+  synckey: number;
+  htmlContent?: string;
+  review: {
+    reviewId: string;
+    content: string;
+    bookId?: string;
+    chapterUid?: number;
+    createTime?: number;
+    author?: { userVid: string; name: string; avatar?: string };
+  };
+}
+
 export class NotesApi {
   constructor(private readonly client: WereadClient) {}
 
@@ -65,6 +198,31 @@ export class NotesApi {
   /** `/book/bookmarklist` — 单本书的划线内容（已过滤书签）。 */
   bookmarks(params: BookmarkListParams): Promise<BookmarkListResponse> {
     return this.client.call<BookmarkListResponse>('/book/bookmarklist', { ...params });
+  }
+
+  /** `/review/list/mine` — 单本书的个人想法与点评。 */
+  mineReviews(params: MineReviewListParams): Promise<MineReviewListResponse> {
+    return this.client.call<MineReviewListResponse>('/review/list/mine', { ...params });
+  }
+
+  /** `/book/underlines` — 章节划线热度统计（不含文本）。 */
+  underlines(params: UnderlinesParams): Promise<UnderlinesResponse> {
+    return this.client.call<UnderlinesResponse>('/book/underlines', { ...params });
+  }
+
+  /** `/book/bestbookmarks` — 全书热门划线（含原文与人数，固定前 20 条）。 */
+  bestBookmarks(params: BestBookmarksParams): Promise<BestBookmarksResponse> {
+    return this.client.call<BestBookmarksResponse>('/book/bestbookmarks', { ...params });
+  }
+
+  /** `/book/readreviews` — 划线下的想法/评论。 */
+  readReviews(params: ReadReviewsParams): Promise<ReadReviewsResponse> {
+    return this.client.call<ReadReviewsResponse>('/book/readreviews', { ...params });
+  }
+
+  /** `/review/single` — 单条想法详情。 */
+  reviewSingle(params: ReviewSingleParams): Promise<ReviewSingleResponse> {
+    return this.client.call<ReviewSingleResponse>('/review/single', { ...params });
   }
 
   /**

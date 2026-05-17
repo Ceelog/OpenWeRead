@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { formatDate, formatDuration, formatRating, formatStar } from './cli/format.js';
+import { formatDate, formatDuration, formatStar } from './cli/format.js';
 import { WereadAuthError, WereadError } from './errors.js';
 import { OpenWeRead } from './sdk.js';
+import type { BookInfo } from './types.js';
 
 const program = new Command();
 
@@ -73,15 +74,22 @@ program
     });
     if (shouldOutputJson()) return printJson(res);
 
+    const books: BookInfo[] = [];
     for (const group of res.results) {
-      console.log(`\n[${group.title}] 共 ${group.scopeCount} 条`);
       group.books.forEach((b, i) => {
         const info = b.bookInfo;
-        console.log(
-          `  ${i + 1}. ${info.title} - ${info.author ?? '-'}  评分 ${formatRating(b.newRating)}  bookId=${info.bookId}`,
-        );
+        info.bookId && books.push(info);
       });
     }
+
+    if (books.length === 0) {
+      console.log('没有找到相关书籍');
+    }
+
+    console.log('序号,书籍ID,书名,作者');
+    books.forEach((b, i) => {
+      console.log(`${i + 1},${b.bookId},${b.title},${b.author ?? '-'}`);
+    });
   });
 
 // book ------------------------------------------------------------------------
@@ -93,10 +101,9 @@ book
   .action(async (bookId: string) => {
     const info = await sdk().book.info(bookId);
     if (shouldOutputJson()) return printJson(info);
-    console.log(`${info.title} / ${info.author ?? '-'}`);
-    console.log(`分类: ${info.category ?? '-'}  出版: ${info.publisher ?? '-'}`);
-    console.log(`评分: ${formatRating(info.newRating)} (${info.newRatingCount ?? 0} 人)`);
-    if (info.intro) console.log(`简介: ${info.intro}`);
+    for (const [key, value] of Object.entries(info)) {
+      console.log(`${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
+    }
   });
 
 book
@@ -118,7 +125,7 @@ book
     const res = await sdk().book.progress(bookId);
     if (shouldOutputJson()) return printJson(res);
     const b = res.book;
-    console.log(`进度: ${b.progress}%`);
+    console.log(`进度: ${b.progress || 0}%`);
     console.log(`累计阅读: ${formatDuration(b.recordReadingTime)}`);
     console.log(`最后阅读: ${formatDate(b.updateTime)}`);
     if (b.finishTime) console.log(`读完时间: ${formatDate(b.finishTime)}`);
@@ -136,9 +143,9 @@ program
     console.log(
       `书架共 ${total} 个条目（电子书 ${res.books.length} + 专辑 ${res.albums.length} + 文章收藏 ${mpCount}）\n`,
     );
+    console.log('序号，书籍 ID，标题，作者');
     res.books.forEach((b, i) => {
-      const tag = b.finishReading ? '[读完]' : '';
-      console.log(`  ${i + 1}. ${b.title} - ${b.author ?? '-'} ${tag}  bookId=${b.bookId}`);
+      console.log(`${i + 1},${b.bookId},${b.title},${b.author ?? '-'}`);
     });
   });
 
@@ -171,10 +178,10 @@ notes
     const res = await sdk().notes.notebooks({ count: opts.count });
     if (shouldOutputJson()) return printJson(res);
     console.log(`共 ${res.totalBookCount} 本，笔记总数 ${res.totalNoteCount}\n`);
+    console.log('序号，书籍 ID，标题，划线数，想法数，书签数');
     res.books.forEach((b, i) => {
-      const total = b.reviewCount + b.noteCount + b.bookmarkCount;
       console.log(
-        `  ${i + 1}. ${b.book.title}  笔记 ${total} (划线 ${b.noteCount} / 想法 ${b.reviewCount} / 书签 ${b.bookmarkCount})`,
+        `${i + 1},${b.book.bookId},${b.book.title},${b.noteCount},${b.reviewCount},${b.bookmarkCount}`,
       );
     });
   });
@@ -188,6 +195,107 @@ notes
     for (const m of res.updated ?? []) {
       console.log(`- ${m.markText}`);
     }
+  });
+
+notes
+  .command('mine <bookId>')
+  .description('导出某本书的个人想法/点评')
+  .option('-c, --count <n>', '每页数量', (v) => Number.parseInt(v, 10), 20)
+  .option('-s, --synckey <n>', '翻页游标', (v) => Number.parseInt(v, 10), 0)
+  .action(async (bookId: string, opts) => {
+    const res = await sdk().notes.mineReviews({
+      bookid: bookId,
+      count: opts.count,
+      synckey: opts.synckey,
+    });
+    if (shouldOutputJson()) return printJson(res);
+    console.log(`共 ${res.totalCount || 0} 条，hasMore=${res.hasMore}\n`);
+    for (const item of res.reviews ?? []) {
+      const r = item.review;
+      const head = r.chapterName
+        ? `[${r.chapterName}] `
+        : r.isFinish !== undefined
+          ? '[书评] '
+          : '';
+      const star = r.star ? ` ${formatStar(r.star)}` : '';
+      console.log(`${head}${formatDate(r.createTime)}${star}`);
+      if (r.abstract) console.log(`  > ${r.abstract}`);
+      console.log(`  ${r.content}\n`);
+    }
+  });
+
+notes
+  .command('underlines <bookId> <chapterUid>')
+  .description('查看章节划线热度统计（无文本）')
+  .action(async (bookId: string, chapterUid: string) => {
+    const res = await sdk().notes.underlines({
+      bookId,
+      chapterUid: Number.parseInt(chapterUid, 10),
+    });
+    if (shouldOutputJson()) return printJson(res);
+    for (const u of res.underlines ?? []) {
+      console.log(`  range=${u.range}  人数=${u.count}  得分=${u.score ?? '-'}`);
+    }
+  });
+
+notes
+  .command('best <bookId>')
+  .description('查看全书热门划线（含原文与人数）')
+  .option('-u, --chapter <uid>', '章节 UID（0=全部）', (v) => Number.parseInt(v, 10), 0)
+  .action(async (bookId: string, opts) => {
+    const res = await sdk().notes.bestBookmarks({
+      bookId,
+      chapterUid: opts.chapter,
+    });
+    if (shouldOutputJson()) return printJson(res);
+    const titleByUid = new Map((res.chapters ?? []).map((c) => [c.chapterUid, c.title ?? '']));
+    console.log(`共 ${res.totalCount || 0} 条热门划线\n`);
+    res.items?.forEach((it, i) => {
+      const ch = titleByUid.get(it.chapterUid);
+      console.log(`  ${i + 1}. [${it.totalCount} 人] ${ch ? `《${ch}》 ` : ''}range=${it.range}`);
+      console.log(`     > ${it.markText}`);
+    });
+  });
+
+notes
+  .command('readreviews <bookId> <chapterUid> <range>')
+  .description('查看某条热门划线下的想法（range 来自 best 命令）')
+  .option('-c, --count <n>', '每页数量（≤20）', (v) => Number.parseInt(v, 10), 20)
+  .option('-s, --synckey <n>', '翻页游标', (v) => Number.parseInt(v, 10), 0)
+  .action(async (bookId: string, chapterUid: string, range: string, opts) => {
+    const res = await sdk().notes.readReviews({
+      bookId,
+      chapterUid: Number.parseInt(chapterUid, 10),
+      reviews: [{ range, count: opts.count, synckey: opts.synckey }],
+    });
+    if (shouldOutputJson()) return printJson(res);
+    for (const group of res.reviews ?? []) {
+      console.log(`range=${group.range}  共 ${group.totalCount} 条想法\n`);
+      for (const pr of group.pageReviews ?? []) {
+        const r = pr.review;
+        console.log(`- ${r.author?.name ?? '匿名'}  ${formatDate(r.createTime)}`);
+        if (r.abstract) console.log(`  > ${r.abstract}`);
+        console.log(`  ${r.content}\n`);
+      }
+    }
+  });
+
+notes
+  .command('review <reviewId>')
+  .description('查看单条想法详情')
+  .option('--comments <n>', '拉取评论数量', (v) => Number.parseInt(v, 10), 10)
+  .option('--likes <n>', '拉取点赞数量', (v) => Number.parseInt(v, 10), 10)
+  .action(async (reviewId: string, opts) => {
+    const res = await sdk().notes.reviewSingle({
+      reviewId,
+      commentsCount: opts.comments,
+      likesCount: opts.likes,
+    });
+    if (shouldOutputJson()) return printJson(res);
+    const r = res.review;
+    console.log(`作者: ${r.author?.name ?? '匿名'}`);
+    console.log(`时间: ${formatDate(r.createTime)}`);
+    console.log(`\n${r.content}`);
   });
 
 // review ----------------------------------------------------------------------
@@ -248,7 +356,7 @@ program
     console.log('最近阅读：');
     for (const r of res.recent) {
       console.log(
-        `  ${r.title} — 进度 ${r.progress.progress}% — 最近 ${formatDate(r.progress.updateTime)}`,
+        `  ${r.bookId} - ${r.title} — 进度 ${r.progress.progress}% — 最近 ${formatDate(r.progress.updateTime)}`,
       );
     }
   });
